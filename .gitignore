@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Project artifacts
+exported_notes_pdf/
+account.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Notes
+Takeout
+exported_notes_pdf_takeout
