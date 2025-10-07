@@ -33,6 +33,35 @@ os.makedirs(export_base, exist_ok=True)
 def safe_fname(name: str) -> str:
     return ''.join(c for c in name if c.isalnum() or c in (' ', '-', '_')).rstrip() or "note"
 
+
+def clean_text_for_pdf(text: str) -> str:
+    """Remove or replace characters that can't be encoded in latin-1 for FPDF."""
+    if not text:
+        return text
+    
+    # Try to encode to latin-1, replace problematic characters
+    try:
+        text.encode('latin-1')
+        return text
+    except UnicodeEncodeError:
+        # Replace common Unicode characters with ASCII equivalents
+        replacements = {
+            '\u2019': "'",  # Right single quotation mark
+            '\u201c': '"',  # Left double quotation mark
+            '\u201d': '"',  # Right double quotation mark
+            '\u2013': '-',  # En dash
+            '\u2014': '-',  # Em dash
+            '\u2026': '...',  # Horizontal ellipsis
+        }
+        
+        for unicode_char, replacement in replacements.items():
+            text = text.replace(unicode_char, replacement)
+        
+        # Remove any remaining characters that can't be encoded in latin-1
+        text = text.encode('latin-1', errors='ignore').decode('latin-1')
+        
+        return text
+
 # --- PDF Generation ---
 for note in keep.all():
     labels = [lbl.name for lbl in note.labels.all()] if getattr(note, 'labels', None) else ['Unlabeled']
@@ -40,8 +69,8 @@ for note in keep.all():
         folder = os.path.join(export_base, label)
         os.makedirs(folder, exist_ok=True)
 
-        title = getattr(note, 'title', '') or 'Untitled'
-        text = getattr(note, 'text', '') or ''
+        title = clean_text_for_pdf(getattr(note, 'title', '') or 'Untitled')
+        text = clean_text_for_pdf(getattr(note, 'text', '') or '')
 
         pdf_name = f"{safe_fname(title)}.pdf"
         pdf_path = os.path.join(folder, pdf_name)
