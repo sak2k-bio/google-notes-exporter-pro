@@ -13,6 +13,35 @@ def safe_fname(name: str) -> str:
     return ''.join(c for c in (name or "Untitled") if c.isalnum() or c in (' ', '-', '_')).rstrip() or "note"
 
 
+def clean_text_for_pdf(text: str) -> str:
+    """Remove or replace characters that can't be encoded in latin-1 for FPDF."""
+    if not text:
+        return text
+    
+    # Try to encode to latin-1, replace problematic characters
+    try:
+        text.encode('latin-1')
+        return text
+    except UnicodeEncodeError:
+        # Replace common Unicode characters with ASCII equivalents
+        replacements = {
+            '\u2019': "'",  # Right single quotation mark
+            '\u201c': '"',  # Left double quotation mark
+            '\u201d': '"',  # Right double quotation mark
+            '\u2013': '-',  # En dash
+            '\u2014': '-',  # Em dash
+            '\u2026': '...',  # Horizontal ellipsis
+        }
+        
+        for unicode_char, replacement in replacements.items():
+            text = text.replace(unicode_char, replacement)
+        
+        # Remove any remaining characters that can't be encoded in latin-1
+        text = text.encode('latin-1', errors='ignore').decode('latin-1')
+        
+        return text
+
+
 essential_json_keys = (
     "title", "textContent", "labels", "attachments"
 )
@@ -76,9 +105,9 @@ def export_takeout_keep_to_pdfs(source: Path, out_dir: Path) -> None:
         if not note:
             continue
 
-        title = note.get("title") or "Untitled"
-        text = note.get("textContent") or note.get("text", "")
-        labels = [l.get("name") for l in (note.get("labels") or []) if isinstance(l, dict) and l.get("name")] or ["Unlabeled"]
+        title = clean_text_for_pdf(note.get("title") or "Untitled")
+        text = clean_text_for_pdf(note.get("textContent") or note.get("text", ""))
+        labels = [clean_text_for_pdf(l.get("name")) for l in (note.get("labels") or []) if isinstance(l, dict) and l.get("name")] or ["Unlabeled"]
 
         # Attachments
         att_paths = derive_attachment_paths(note, keep_dir=keep_dir, takeout_root=takeout_root)
